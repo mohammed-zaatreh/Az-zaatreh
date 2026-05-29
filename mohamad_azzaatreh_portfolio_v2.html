@@ -1,0 +1,1997 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Mohamad Ismail Az-za'atreh — Intelligent Systems Engineer</title>
+
+<!-- Premium typefaces: Cormorant for display, Outfit for UI, JetBrains Mono for code/labels -->
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Outfit:wght@200;300;400;500;600&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+
+<!-- GSAP for scroll-driven animations -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+
+<!-- Three.js for all 3D particle work -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<style>
+/* ═══════════════════════════════════════════════════════
+   DESIGN TOKENS — Obsidian × Antique Gold × Ivory
+═══════════════════════════════════════════════════════ */
+:root {
+  --bg:          #050408;           /* near-black with blue-violet tint */
+  --bg2:         #07060c;
+  --surface:     rgba(255,255,255,0.026);
+  --surface-h:   rgba(212,170,60,0.038);
+  --border:      rgba(255,255,255,0.058);
+  --border-glow: rgba(212,170,60,0.32);
+  --gold:        #d4aa3c;           /* antique gold — not neon amber */
+  --gold-bright: #e8c96e;
+  --gold-soft:   rgba(212,170,60,0.14);
+  --gold-glow:   rgba(212,170,60,0.07);
+  --ivory:       #f5f1e8;           /* warm ivory for headings */
+  --silver:      #8a94a6;
+  --mist:        rgba(138,148,166,0.72);
+  --ember:       #c4623a;           /* subtle ember accent */
+  --violet:      #7a5fa8;           /* muted violet accent */
+  --font-d:      'Cormorant Garamond', serif;
+  --font-h:      'Outfit', sans-serif;
+  --font-m:      'JetBrains Mono', monospace;
+}
+
+/* ─── RESET & BASE ──────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; overflow-x: hidden; }
+body {
+  background: var(--bg);
+  color: var(--ivory);
+  font-family: var(--font-h);
+  font-weight: 300;
+  line-height: 1.7;
+  overflow-x: hidden;
+  cursor: none;
+}
+
+/* ─── CUSTOM CURSOR ─────────────────────────────────── */
+/* A precise gold dot with a delayed ring — feels deliberate */
+#cur {
+  position: fixed; top: 0; left: 0;
+  width: 6px; height: 6px;
+  background: var(--gold);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 9999;
+  transform: translate(-50%,-50%);
+  box-shadow: 0 0 12px var(--gold), 0 0 28px rgba(212,170,60,0.5);
+  transition: width .15s, height .15s, opacity .2s;
+}
+#cur-ring {
+  position: fixed; top: 0; left: 0;
+  width: 30px; height: 30px;
+  border: 1px solid rgba(212,170,60,0.24);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 9998;
+  transform: translate(-50%,-50%);
+  transition: width .28s, height .28s, border-color .22s;
+}
+
+/* ─── NAV ───────────────────────────────────────────── */
+nav {
+  position: fixed; top: 0; left: 0; right: 0;
+  z-index: 500;
+  padding: 1.4rem 3rem;
+  display: flex; justify-content: space-between; align-items: center;
+  transition: background .4s, border-bottom .4s;
+}
+nav.scrolled {
+  background: rgba(5,4,8,.94);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+.nav-logo {
+  font-family: var(--font-m);
+  font-size: .78rem; font-weight: 400;
+  letter-spacing: .18em; text-transform: uppercase;
+  color: var(--gold);
+  text-shadow: 0 0 20px rgba(212,170,60,0.5);
+}
+.nav-links { display: flex; gap: 2.4rem; list-style: none; }
+.nav-links a {
+  font-size: .65rem; font-weight: 500;
+  letter-spacing: .18em; text-transform: uppercase;
+  color: var(--silver); text-decoration: none;
+  transition: color .2s; cursor: none;
+}
+.nav-links a:hover { color: var(--gold); }
+@media(max-width:640px){ .nav-links { display:none; } }
+
+/* ─── HERO ──────────────────────────────────────────── */
+#hero {
+  position: relative;
+  z-index: 10;   /* must be above galaxy canvas (1), vignette (2), scanlines (3) */
+  min-height: 100vh;
+  display: flex; flex-direction: column; justify-content: center;
+}
+
+/* Galaxy canvas: FIXED to viewport so it persists while scrolling.
+   z-index 1 keeps it behind all page content.
+   The Three.js particle system renders here and morphs as you scroll. */
+#galaxy-canvas {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* Fixed dark vignette — always frames the canvas and keeps text readable */
+#galaxy-vignette {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  z-index: 2;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 60% 70% at 62% 50%, transparent 20%, rgba(5,4,8,.48) 72%, rgba(5,4,8,.88) 100%),
+    radial-gradient(ellipse 36% 80% at 0% 50%,  rgba(5,4,8,.82) 0%, transparent 68%);
+}
+
+/* Fixed scanline texture */
+#galaxy-scanlines {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  z-index: 3;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg, transparent, transparent 2px,
+    rgba(0,0,0,.016) 2px, rgba(0,0,0,.016) 4px
+  );
+}
+
+.hero-inner {
+  position: relative; z-index: 10;  /* above fixed vignette (z:2) and scanlines (z:3) */
+  max-width: 1200px; margin: 0 auto; width: 100%;
+  padding: 9rem 3rem 4rem;
+}
+
+/* Small eyebrow label above the name */
+.hero-label {
+  font-family: var(--font-m);
+  font-size: .62rem; font-weight: 400;
+  letter-spacing: .34em; text-transform: uppercase;
+  color: var(--gold); margin-bottom: 1.8rem;
+  opacity: 0; transform: translateY(18px);
+  display: flex; align-items: center; gap: 1rem;
+}
+.hero-label::before {
+  content: ''; display: block;
+  width: 38px; height: 1px;
+  background: linear-gradient(to right, transparent, var(--gold));
+  box-shadow: 0 0 8px var(--gold);
+}
+
+/* The dominant editorial name */
+.hero-name {
+  font-family: var(--font-d);
+  font-weight: 300;
+  font-size: clamp(3.4rem, 9.5vw, 9.4rem);
+  line-height: .9; letter-spacing: -.01em;
+  color: var(--ivory); margin-bottom: .2em;
+  opacity: 0; transform: translateY(28px);
+  text-shadow:
+    0 0 120px rgba(212,170,60,.08),
+    0 8px 60px rgba(0,0,0,.95),
+    0 1px 0 rgba(255,255,255,.04);
+}
+.hero-name em {
+  font-style: normal;
+  background: linear-gradient(135deg, var(--gold) 0%, var(--gold-bright) 42%, #c4863a 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 0 44px rgba(212,170,60,.38));
+}
+
+.hero-title {
+  font-size: clamp(.78rem, 2vw, 1.2rem);
+  font-weight: 300; color: var(--silver);
+  letter-spacing: .14em; margin-bottom: 2.2rem;
+  opacity: 0; transform: translateY(18px);
+  text-transform: uppercase;
+}
+
+.hero-tagline {
+  max-width: 450px;
+  font-size: .9rem; font-weight: 300;
+  color: var(--mist); line-height: 1.95;
+  margin-bottom: 3.4rem;
+  opacity: 0; transform: translateY(16px);
+}
+
+.hero-ctas {
+  display: flex; gap: 1.4rem; flex-wrap: wrap;
+  opacity: 0; transform: translateY(14px);
+}
+
+/* "Replay Intro" button — fixed bottom-right, always accessible */
+#big-bang-btn {
+  position: fixed;
+  bottom: 2.4rem; right: 2.8rem;
+  z-index: 100;
+  font-family: var(--font-m);
+  font-size: .6rem; font-weight: 400;
+  letter-spacing: .26em; text-transform: uppercase;
+  color: rgba(212,170,60,.45);
+  background: none; border: 1px solid rgba(212,170,60,.18);
+  padding: .6rem 1.4rem;
+  cursor: none;
+  transition: color .3s, border-color .3s, box-shadow .3s;
+  opacity: 0; /* fades in after singularity phase */
+}
+#big-bang-btn:hover {
+  color: var(--gold);
+  border-color: rgba(212,170,60,.5);
+  box-shadow: 0 0 24px rgba(212,170,60,.12);
+}
+
+/* Scroll cue at the bottom center */
+.hero-scroll {
+  position: absolute; bottom: 2.6rem; left: 50%;
+  transform: translateX(-50%); z-index: 10;
+  display: flex; flex-direction: column; align-items: center; gap: .6rem;
+  opacity: 0; animation: fadeUpCue 1s 4.5s forwards;
+}
+.hero-scroll span {
+  font-family: var(--font-m); font-size: .52rem;
+  letter-spacing: .3em; color: rgba(138,148,166,.28);
+  text-transform: uppercase;
+}
+.scroll-line {
+  width: 1px; height: 48px;
+  background: linear-gradient(to bottom, var(--gold), transparent);
+  animation: scrollCue 2.6s ease-in-out infinite;
+}
+@keyframes scrollCue {
+  0%  { transform:scaleY(0); transform-origin:top; opacity:1; }
+  50% { transform:scaleY(1); transform-origin:top; }
+  51% { transform-origin:bottom; }
+  100%{ transform:scaleY(0); transform-origin:bottom; opacity:0; }
+}
+@keyframes fadeUpCue {
+  from { opacity:0; transform:translateX(-50%) translateY(14px); }
+  to   { opacity:1; transform:translateX(-50%) translateY(0); }
+}
+
+/* ─── BUTTONS ───────────────────────────────────────── */
+/* Primary: antique gold fill with chamfered corners */
+.btn-primary {
+  display: inline-flex; align-items: center; gap: .6rem;
+  padding: .88rem 2.2rem;
+  background: linear-gradient(135deg, var(--gold), var(--gold-bright));
+  color: #08060c;
+  font-family: var(--font-h); font-weight: 600; font-size: .7rem;
+  letter-spacing: .16em; text-transform: uppercase; text-decoration: none;
+  border: none; cursor: none;
+  clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 9px 100%, 0 calc(100% - 9px));
+  transition: transform .2s, box-shadow .2s;
+  position: relative; overflow: hidden;
+}
+.btn-primary::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,.28) 50%, transparent 70%);
+  transform: translateX(-100%); transition: transform .4s;
+}
+.btn-primary:hover::after { transform: translateX(100%); }
+.btn-primary:hover {
+  box-shadow: 0 0 44px rgba(212,170,60,.48);
+  transform: translateY(-2px);
+}
+
+/* Secondary: ghost outlined */
+.btn-secondary {
+  display: inline-flex; align-items: center; gap: .6rem;
+  padding: .88rem 2.2rem; background: transparent; color: var(--silver);
+  font-family: var(--font-h); font-weight: 500; font-size: .7rem;
+  letter-spacing: .16em; text-transform: uppercase; text-decoration: none;
+  border: 1px solid var(--border); cursor: none;
+  clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 9px 100%, 0 calc(100% - 9px));
+  transition: border-color .22s, color .22s, transform .2s;
+}
+.btn-secondary:hover {
+  border-color: var(--gold); color: var(--gold); transform: translateY(-2px);
+}
+
+/* ─── SECTION UTILITIES ─────────────────────────────── */
+/* Sections must sit above the fixed canvas (z:1), vignette (z:2), scanlines (z:3) */
+section { position: relative; z-index: 10; }
+.container { max-width: 1200px; margin: 0 auto; padding: 0 3rem; }
+.section-label {
+  font-family: var(--font-m); font-size: .58rem; font-weight: 400;
+  letter-spacing: .3em; text-transform: uppercase; color: var(--gold);
+  margin-bottom: 1.1rem; display: flex; align-items: center; gap: .8rem;
+}
+.section-label::before {
+  content: ''; width: 20px; height: 1px;
+  background: linear-gradient(to right, transparent, var(--gold));
+  box-shadow: 0 0 8px var(--gold);
+}
+.section-heading {
+  font-family: var(--font-d); font-weight: 300;
+  font-size: clamp(2.4rem, 5vw, 4.8rem);
+  line-height: 1.0; color: var(--ivory); margin-bottom: 1.3rem;
+}
+.section-subheading {
+  max-width: 540px; color: var(--silver);
+  font-size: .88rem; font-weight: 300;
+  line-height: 1.95; margin-bottom: 4.5rem;
+}
+.glass {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+.glow-line {
+  width: 48px; height: 1px;
+  background: linear-gradient(to right, var(--gold), transparent);
+  margin-bottom: 1.4rem;
+  box-shadow: 0 0 14px rgba(212,170,60,.6);
+}
+/* Reveal animation — starts hidden, GSAP ScrollTrigger shows them */
+.reveal { opacity: 0; transform: translateY(32px); }
+
+.depth-divider {
+  height: 1px;
+  background: linear-gradient(to right, transparent, rgba(212,170,60,.1), transparent);
+}
+.depth-blur-top {
+  position: absolute; top: 0; left: 0; right: 0; height: 100px;
+  background: linear-gradient(to bottom, var(--bg), transparent);
+  z-index: 2; pointer-events: none;
+}
+.depth-blur-bot {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 100px;
+  background: linear-gradient(to top, var(--bg), transparent);
+  z-index: 2; pointer-events: none;
+}
+
+/* ─── CAPABILITIES ──────────────────────────────────── */
+#capabilities {
+  padding: 10rem 0;
+  /* Semi-transparent so the galaxy canvas glows through from behind */
+  background: linear-gradient(180deg, rgba(5,4,8,.92) 0%, rgba(10,7,16,.88) 50%, rgba(5,4,8,.92) 100%);
+}
+.capabilities-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px,1fr));
+  gap: 1px; border: 1px solid var(--border);
+}
+.cap-card {
+  padding: 2.2rem 2rem; position: relative; overflow: hidden;
+  background: rgba(5,4,8,.88);
+  transition: background .3s; cursor: none;
+  /* Subtle 3D tilt handled by JS */
+  transform-style: preserve-3d;
+  transition: background .3s, transform .25s;
+}
+/* Corner accent lines that animate in on hover */
+.cap-card::before, .cap-card::after {
+  content: ''; position: absolute;
+  transition: opacity .3s, transform .35s;
+}
+.cap-card::before {
+  top: 0; left: 0; width: 32px; height: 1px;
+  background: var(--gold); opacity: 0;
+  transform: scaleX(0); transform-origin: left;
+}
+.cap-card::after {
+  top: 0; left: 0; width: 1px; height: 32px;
+  background: var(--gold); opacity: 0;
+  transform: scaleY(0); transform-origin: top;
+}
+.cap-card:hover { background: var(--surface-h); }
+.cap-card:hover::before, .cap-card:hover::after { opacity:1; transform:scale(1); }
+.cap-corner-br { position: absolute; bottom:0; right:0; pointer-events:none; }
+.cap-corner-br::before, .cap-corner-br::after {
+  content:''; position:absolute; transition:opacity .3s, transform .35s;
+}
+.cap-corner-br::before {
+  bottom:0; right:0; width:32px; height:1px;
+  background:var(--gold); opacity:0; transform:scaleX(0); transform-origin:right;
+}
+.cap-corner-br::after {
+  bottom:0; right:0; width:1px; height:32px;
+  background:var(--gold); opacity:0; transform:scaleY(0); transform-origin:bottom;
+}
+.cap-card:hover .cap-corner-br::before,
+.cap-card:hover .cap-corner-br::after { opacity:1; transform:scale(1); }
+.cap-icon {
+  width:34px; height:34px; margin-bottom:1.4rem;
+  color:var(--gold); opacity:.78;
+}
+.cap-icon svg { width:100%; height:100%; }
+.cap-title {
+  font-family:var(--font-h); font-size:.88rem; font-weight:600;
+  color:var(--ivory); margin-bottom:.55rem;
+}
+.cap-desc { font-size:.8rem; color:var(--silver); line-height:1.78; font-weight:300; }
+.cap-tags { margin-top:1.2rem; display:flex; flex-wrap:wrap; gap:.4rem; }
+.cap-tag {
+  font-family:var(--font-m); font-size:.56rem; font-weight:400;
+  letter-spacing:.08em; text-transform:uppercase;
+  padding:.2rem .62rem; border:1px solid rgba(212,170,60,.14);
+  color:rgba(212,170,60,.58);
+}
+
+/* ─── PHILOSOPHY ────────────────────────────────────── */
+#philosophy {
+  padding:10rem 0; overflow:hidden;
+  background:linear-gradient(135deg, rgba(14,8,22,.82) 0%, rgba(5,4,8,.88) 60%);
+}
+/* Ambient wireframe sphere — rendered by Three.js as atmosphere */
+#sphere-canvas {
+  position:absolute; right:-8%; top:50%;
+  transform:translateY(-50%);
+  width:min(600px,60vw); height:min(600px,60vw);
+  z-index:0; pointer-events:none; opacity:.18;
+}
+.philosophy-grid {
+  display:grid; grid-template-columns:1fr 1fr;
+  gap:5.5rem; align-items:center;
+}
+@media(max-width:768px){
+  .philosophy-grid { grid-template-columns:1fr; gap:3rem; }
+}
+.philosophy-text p {
+  color:var(--silver); font-size:.88rem; font-weight:300;
+  line-height:2.0; margin-bottom:1.5rem;
+}
+.philosophy-text p strong { color:var(--ivory); font-weight:500; }
+.philosophy-pillars { display:flex; flex-direction:column; gap:2px; }
+.pillar {
+  padding:1.5rem 2rem; display:flex; align-items:flex-start; gap:1.4rem;
+  background:var(--surface); border:1px solid var(--border);
+  transition:border-color .28s, background .28s; cursor:none;
+  position:relative; overflow:hidden;
+}
+.pillar::before {
+  content:''; position:absolute; left:0; top:0; bottom:0;
+  width:2px;
+  background:linear-gradient(to bottom, var(--gold), transparent);
+  transform:scaleY(0); transform-origin:bottom; transition:transform .38s;
+}
+.pillar:hover { border-color:var(--border-glow); background:var(--surface-h); }
+.pillar:hover::before { transform:scaleY(1); }
+.pillar-num {
+  font-family:var(--font-d); font-weight:300; font-size:2.4rem;
+  color:rgba(212,170,60,.14); line-height:1; min-width:3rem;
+}
+.pillar-body h4 {
+  font-family:var(--font-h); font-size:.84rem; font-weight:600;
+  color:var(--ivory); margin-bottom:.35rem;
+}
+.pillar-body p { font-size:.79rem; color:var(--silver); line-height:1.72; font-weight:300; }
+
+/* ─── AI + INTELLIGENCE ─────────────────────────────── */
+#ai-section {
+  padding:10rem 0; overflow:hidden; position:relative;
+  background:linear-gradient(180deg, rgba(5,4,8,.88) 0%, rgba(12,6,20,.84) 50%, rgba(5,4,8,.88) 100%);
+}
+#neural-canvas {
+  position:absolute; inset:0; width:100%; height:100%;
+  pointer-events:none; z-index:0; opacity:.36;
+}
+.ai-inner { position:relative; z-index:1; }
+.ai-layout {
+  display:grid; grid-template-columns:1fr 400px;
+  gap:4.5rem; align-items:start;
+}
+@media(max-width:900px){ .ai-layout { grid-template-columns:1fr; } }
+.ai-grid {
+  display:grid; grid-template-columns:1fr 1fr;
+  gap:1px; border:1px solid var(--border);
+}
+.ai-cell {
+  padding:1.6rem 1.8rem; background:rgba(5,4,8,.82);
+  transition:background .25s; cursor:none;
+}
+.ai-cell:hover { background:rgba(212,170,60,.028); }
+.ai-cell-icon {
+  font-size:1.3rem; color:var(--gold); margin-bottom:.9rem;
+  opacity:.65; line-height:1; display:block;
+}
+.ai-cell-title {
+  font-family:var(--font-h); font-size:.8rem; font-weight:600;
+  color:var(--ivory); margin-bottom:.5rem;
+}
+.ai-cell-desc { font-size:.76rem; color:var(--silver); line-height:1.72; font-weight:300; }
+.ai-model-wrap { display:flex; flex-direction:column; gap:1rem; }
+.ai-model-frame {
+  width:100%; aspect-ratio:1/1;
+  overflow:hidden; position:relative;
+}
+.ai-model-frame iframe { width:100%; height:100%; border:0; display:block; }
+#sf-fallback { display:none; width:100%; height:100%; }
+.ai-model-label {
+  font-family:var(--font-m); font-size:.58rem; font-weight:400;
+  letter-spacing:.22em; text-transform:uppercase;
+  color:rgba(212,170,60,.38); text-align:center;
+}
+
+/* ─── RELIABILITY / CONTROL PANEL ──────────────────── */
+#reliability {
+  padding:10rem 0;
+  background:linear-gradient(180deg, rgba(5,4,8,.9) 0%, rgba(8,5,14,.86) 50%, rgba(5,4,8,.9) 100%);
+}
+.dashboard {
+  display:grid;
+  grid-template-columns:repeat(auto-fill, minmax(260px,1fr));
+  gap:1px; border:1px solid var(--border);
+}
+.dash-panel { padding:2rem; background:rgba(5,4,8,.88); }
+.dash-panel-header {
+  display:flex; align-items:center; gap:.75rem;
+  margin-bottom:1.8rem; padding-bottom:1.2rem;
+  border-bottom:1px solid var(--border);
+}
+.dash-panel-dot {
+  width:8px; height:8px; border-radius:50%;
+  background:var(--gold); box-shadow:0 0 10px var(--gold);
+  animation:dotPulse 2.4s ease-in-out infinite;
+}
+@keyframes dotPulse {
+  0%,100%{opacity:1} 50%{opacity:.35}
+}
+.dash-panel-title {
+  font-family:var(--font-m); font-size:.63rem; font-weight:400;
+  letter-spacing:.18em; text-transform:uppercase; color:var(--silver);
+}
+.metric-row {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:.7rem 0; border-bottom:1px solid rgba(255,255,255,.025);
+}
+.metric-row:last-child { border-bottom:none; }
+.metric-label { font-size:.74rem; color:var(--silver); font-weight:300; }
+.metric-value {
+  font-family:var(--font-m); font-size:.68rem; font-weight:400;
+  color:var(--gold);
+}
+.bar-metric { margin-bottom:1.1rem; }
+.bar-header { display:flex; justify-content:space-between; margin-bottom:.5rem; }
+.bar-label { font-size:.74rem; color:var(--silver); font-weight:300; }
+.bar-pct { font-family:var(--font-m); font-size:.68rem; color:var(--gold); }
+.bar-track { height:2px; background:rgba(255,255,255,.055); overflow:hidden; }
+.bar-fill {
+  height:100%; width:0;
+  background:linear-gradient(to right, var(--gold), var(--gold-bright));
+  box-shadow:0 0 10px rgba(212,170,60,.45);
+  transition:width 1.5s cubic-bezier(.16,1,.3,1);
+}
+
+/* ─── CONTACT ───────────────────────────────────────── */
+#contact {
+  padding:10rem 0 6rem;
+  background:linear-gradient(180deg, rgba(5,4,8,.88) 0%, rgba(14,8,20,.84) 100%);
+}
+.contact-eyebrow {
+  font-family:var(--font-m); font-size:.58rem; font-weight:400;
+  letter-spacing:.34em; text-transform:uppercase; color:var(--gold);
+  margin-bottom:1.2rem; display:flex; align-items:center; gap:.8rem;
+}
+.contact-eyebrow::before {
+  content:''; display:block; width:26px; height:1px;
+  background:linear-gradient(to right, transparent, var(--gold));
+}
+.contact-headline {
+  font-family:var(--font-d); font-weight:300;
+  font-size:clamp(3rem, 7vw, 6.5rem);
+  line-height:.94; color:var(--ivory); margin-bottom:1.4rem;
+  letter-spacing:-.01em;
+}
+.contact-sub {
+  max-width:500px; font-size:.86rem; font-weight:300;
+  color:var(--silver); line-height:1.95; margin-bottom:3.5rem;
+}
+.contact-card {
+  padding:2.8rem 3rem; max-width:680px;
+  display:flex; flex-direction:column; gap:2rem;
+}
+.contact-email {
+  font-family:var(--font-m); font-size:clamp(.88rem,2vw,1.18rem);
+  color:var(--ivory); text-decoration:none;
+  transition:color .2s; cursor:none; font-weight:400; letter-spacing:.04em;
+}
+.contact-email:hover { color:var(--gold); }
+.contact-links {
+  display:flex; gap:1.6rem; flex-wrap:wrap; align-items:center;
+}
+.contact-link {
+  font-family:var(--font-h); font-size:.73rem; font-weight:500;
+  letter-spacing:.13em; text-transform:uppercase;
+  color:var(--silver); text-decoration:none;
+  transition:color .2s; cursor:none;
+}
+.contact-link:hover { color:var(--gold); }
+.footer-line {
+  margin-top:5rem;
+  font-family:var(--font-m); font-size:.58rem; font-weight:400;
+  letter-spacing:.18em; text-transform:uppercase;
+  color:rgba(138,148,166,.24); text-align:center;
+}
+
+/* ─── GLOBAL AMBIENT BACKGROUND ────────────────────── */
+/* Very faint drifting particles that persist across all sections */
+#bg-canvas {
+  position:fixed; inset:0; z-index:0;
+  opacity:.18; pointer-events:none;
+}
+
+/* ─── RESPONSIVE ────────────────────────────────────── */
+@media(max-width:640px) {
+  .hero-inner  { padding:7rem 1.5rem 4rem; }
+  .container   { padding:0 1.5rem; }
+  nav          { padding:1.2rem 1.5rem; }
+  .dashboard   { grid-template-columns:1fr; }
+  .ai-grid     { grid-template-columns:1fr; }
+  .contact-card{ padding:2rem 1.5rem; }
+  .capabilities-grid { grid-template-columns:1fr; }
+  #big-bang-btn { right:1.5rem; bottom:2rem; }
+}
+</style>
+</head>
+<body>
+
+<!-- Custom cursor — the gold dot follows your mouse exactly -->
+<div id="cur"></div>
+<!-- Ring lags behind for a parallax feel -->
+<div id="cur-ring"></div>
+
+<!-- Fixed galaxy canvas — covers the full viewport at all scroll positions -->
+<canvas id="galaxy-canvas"></canvas>
+<!-- Fixed atmospheric overlays that sit just above the canvas -->
+<div id="galaxy-vignette"></div>
+<div id="galaxy-scanlines"></div>
+
+<!-- Fixed ambient particle canvas — runs behind all sections -->
+<canvas id="bg-canvas"></canvas>
+
+<!-- ════════════════════════════════════
+     NAVIGATION
+════════════════════════════════════ -->
+<nav id="main-nav">
+  <!-- Monogram logo — the gold typewriter feel establishes the brand instantly -->
+  <div class="nav-logo">M.I.Z</div>
+  <ul class="nav-links">
+    <li><a href="#capabilities" class="cursor-hover">Capabilities</a></li>
+    <li><a href="#philosophy"   class="cursor-hover">Philosophy</a></li>
+    <li><a href="#ai-section"   class="cursor-hover">Intelligence</a></li>
+    <li><a href="#reliability"  class="cursor-hover">Reliability</a></li>
+    <li><a href="#contact"      class="cursor-hover">Contact</a></li>
+  </ul>
+</nav>
+
+<!-- ════════════════════════════════════
+     HERO — Cinematic Particle Universe
+════════════════════════════════════ -->
+<section id="hero">
+
+  <!-- Text content — always anchored, never orbiting -->
+  <div class="hero-inner">
+    <div class="hero-label" id="h-label">Intelligent Systems Engineer</div>
+    <h1 class="hero-name" id="h-name">
+      Mohamad<br/>
+      <em>Ismail</em><br/>
+      Az-za'atreh
+    </h1>
+    <div class="hero-title" id="h-title">Backend · AI · Real-Time Systems</div>
+    <p class="hero-tagline" id="h-tag">
+      Engineering systems that scale, reason, and ship — from architecture decisions to production containers. Precision-first, complexity-aware, delivery-driven.
+    </p>
+    <div class="hero-ctas" id="h-ctas">
+      <a href="#contact"      class="btn-primary  cursor-hover">Reach Out →</a>
+      <a href="#capabilities" class="btn-secondary cursor-hover">See Capabilities</a>
+    </div>
+  </div>
+
+  <!-- Replay button — lets user re-experience the Big Bang sequence -->
+  <button id="big-bang-btn" aria-label="Replay intro sequence">↺ Replay Intro</button>
+
+  <!-- Animated scroll indicator at bottom center -->
+  <div class="hero-scroll">
+    <span>Scroll</span>
+    <div class="scroll-line"></div>
+  </div>
+</section>
+
+<div class="depth-divider"></div>
+
+<!-- ════════════════════════════════════
+     CAPABILITIES
+════════════════════════════════════ -->
+<section id="capabilities">
+  <div class="depth-blur-top"></div>
+  <div class="container">
+    <div class="reveal">
+      <div class="glow-line"></div>
+      <div class="section-label">What I Can Do</div>
+      <h2 class="section-heading">Capabilities</h2>
+      <p class="section-subheading">
+        End-to-end engineering across backend systems, real-time infrastructure,
+        AI integration, and production-grade delivery.
+      </p>
+    </div>
+
+    <div class="capabilities-grid">
+
+      <div class="cap-card reveal">
+        <div class="cap-corner-br"></div>
+        <div class="cap-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3">
+            <circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/>
+            <path d="M12 3v3M12 18v3M3 12h3M18 12h3"/>
+          </svg>
+        </div>
+        <div class="cap-title">Real-Time Systems &amp; WebSockets</div>
+        <p class="cap-desc">Live communication channels, event-driven architectures, and push pipelines that keep applications responsive at scale.</p>
+        <div class="cap-tags"><span class="cap-tag">WebSockets</span><span class="cap-tag">Spring Boot</span><span class="cap-tag">STOMP</span></div>
+      </div>
+
+      <div class="cap-card reveal">
+        <div class="cap-corner-br"></div>
+        <div class="cap-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3">
+            <rect x="2" y="3" width="20" height="4" rx="1"/><rect x="2" y="10" width="20" height="4" rx="1"/>
+            <rect x="2" y="17" width="20" height="4" rx="1"/>
+            <circle cx="6" cy="5" r=".8" fill="currentColor"/>
+            <circle cx="6" cy="12" r=".8" fill="currentColor"/>
+            <circle cx="6" cy="19" r=".8" fill="currentColor"/>
+          </svg>
+        </div>
+        <div class="cap-title">Backend Architecture &amp; REST APIs</div>
+        <p class="cap-desc">Scalable service design, clean layered architecture, versioned REST endpoints, and security-first API contracts.</p>
+        <div class="cap-tags"><span class="cap-tag">Spring Boot</span><span class="cap-tag">REST</span><span class="cap-tag">JWT / OAuth</span></div>
+      </div>
+
+      <div class="cap-card reveal">
+        <div class="cap-corner-br"></div>
+        <div class="cap-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3">
+            <ellipse cx="12" cy="5" rx="9" ry="3"/>
+            <path d="M3 5v5c0 1.66 4.03 3 9 3s9-1.34 9-3V5M3 10v4c0 1.66 4.03 3 9 3s9-1.34 9-3v-4M3 14v4c0 1.66 4.03 3 9 3s9-1.34 9-3v-4"/>
+          </svg>
+        </div>
+        <div class="cap-title">Database Design · PostgreSQL</div>
+        <p class="cap-desc">Normalised schemas, query optimisation, indexing strategies, and migration workflows built for maintainability.</p>
+        <div class="cap-tags"><span class="cap-tag">PostgreSQL</span><span class="cap-tag">JPA / Hibernate</span><span class="cap-tag">Flyway</span></div>
+      </div>
+
+      <div class="cap-card reveal">
+        <div class="cap-corner-br"></div>
+        <div class="cap-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3">
+            <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+            <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+          </svg>
+        </div>
+        <div class="cap-title">Dockerised Deployment</div>
+        <p class="cap-desc">Containerised services, reproducible environments, compose stacks, and CI/CD-ready configs that deploy anywhere.</p>
+        <div class="cap-tags"><span class="cap-tag">Docker</span><span class="cap-tag">Compose</span><span class="cap-tag">CI / CD</span></div>
+      </div>
+
+      <div class="cap-card reveal">
+        <div class="cap-corner-br"></div>
+        <div class="cap-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+          </svg>
+        </div>
+        <div class="cap-title">React Web Applications</div>
+        <p class="cap-desc">Component-driven frontends with clean state management, accessible UI, and seamless API integration.</p>
+        <div class="cap-tags"><span class="cap-tag">React</span><span class="cap-tag">TypeScript</span><span class="cap-tag">Vite</span></div>
+      </div>
+
+      <div class="cap-card reveal">
+        <div class="cap-corner-br"></div>
+        <div class="cap-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3">
+            <rect x="5" y="2" width="14" height="20" rx="2"/>
+            <path d="M12 18h.01M9 6h6M9 10h6M9 14h4"/>
+          </svg>
+        </div>
+        <div class="cap-title">React Native Mobile Apps</div>
+        <p class="cap-desc">Cross-platform iOS and Android experiences with native feel, shared logic, and efficient API sync.</p>
+        <div class="cap-tags"><span class="cap-tag">React Native</span><span class="cap-tag">Expo</span><span class="cap-tag">Mobile UX</span></div>
+      </div>
+
+      <div class="cap-card reveal">
+        <div class="cap-corner-br"></div>
+        <div class="cap-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3">
+            <path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/>
+          </svg>
+        </div>
+        <div class="cap-title">Testing &amp; Reliability</div>
+        <p class="cap-desc">E2E coverage with Cypress and Maestro, backed by unit and integration tests — deployment as a confidence call.</p>
+        <div class="cap-tags"><span class="cap-tag">Cypress</span><span class="cap-tag">Maestro</span><span class="cap-tag">JUnit</span></div>
+      </div>
+
+      <div class="cap-card reveal">
+        <div class="cap-corner-br"></div>
+        <div class="cap-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3">
+            <path d="M12 2a7 7 0 017 7c0 5-7 13-7 13S5 14 5 9a7 7 0 017-7z"/>
+            <circle cx="12" cy="9" r="2.5"/>
+          </svg>
+        </div>
+        <div class="cap-title">AI &amp; ML Integration</div>
+        <p class="cap-desc">Practical intelligence — LLM APIs, semantic search, recommendation systems, and automated decision pipelines.</p>
+        <div class="cap-tags"><span class="cap-tag">LLM APIs</span><span class="cap-tag">Embeddings</span><span class="cap-tag">ML Pipelines</span></div>
+      </div>
+
+      <div class="cap-card reveal">
+        <div class="cap-corner-br"></div>
+        <div class="cap-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3">
+            <circle cx="6" cy="12" r="2"/><circle cx="12" cy="6" r="2"/>
+            <circle cx="18" cy="12" r="2"/><circle cx="12" cy="18" r="2"/>
+            <path d="M8 12h4M12 8v4M14 12h2M12 14v2"/>
+          </svg>
+        </div>
+        <div class="cap-title">System Design &amp; Architecture</div>
+        <p class="cap-desc">Scalable, decoupled topologies — DDD, event sourcing, caching strategies, and diagrams that align teams.</p>
+        <div class="cap-tags"><span class="cap-tag">DDD</span><span class="cap-tag">Microservices</span><span class="cap-tag">System Design</span></div>
+      </div>
+
+    </div>
+  </div>
+  <div class="depth-blur-bot"></div>
+</section>
+
+<div class="depth-divider"></div>
+
+<!-- ════════════════════════════════════
+     PHILOSOPHY
+════════════════════════════════════ -->
+<section id="philosophy">
+  <!-- Ambient wireframe sphere behind the text -->
+  <canvas id="sphere-canvas"></canvas>
+  <div class="depth-blur-top"></div>
+  <div class="container">
+    <div class="philosophy-grid">
+
+      <div class="philosophy-text reveal">
+        <div class="glow-line"></div>
+        <div class="section-label">Engineering Philosophy</div>
+        <h2 class="section-heading">How I Think</h2>
+        <p>Good systems are <strong>intentional</strong>. Every layer — the schema, the service boundary, the API contract, the test — exists because it was designed to, not because it happened to.</p>
+        <p>I build for maintainability first. Code clean enough to own, tested enough to trust, documented enough to hand off. Complexity should live in the domain, not the codebase.</p>
+        <p>On AI: <strong>intelligence should add real value</strong>. I integrate machine learning where it solves a genuine problem — not to decorate a pitch deck. When AI enters a system, it must be auditable, observable, and replaceable.</p>
+        <p>Deployment is part of engineering. A feature that cannot be shipped reliably is not finished. I think in containers, pipelines, and rollback plans from day one.</p>
+      </div>
+
+      <div class="philosophy-pillars reveal">
+        <div class="pillar glass">
+          <div class="pillar-num">01</div>
+          <div class="pillar-body">
+            <h4>Backend Depth</h4>
+            <p>Strong foundations over surface-level magic. The data model and service layer define everything above it.</p>
+          </div>
+        </div>
+        <div class="pillar glass">
+          <div class="pillar-num">02</div>
+          <div class="pillar-body">
+            <h4>Test Before You Trust</h4>
+            <p>Cypress, Maestro, JUnit — tests are specifications. They tell the next engineer what the system promises.</p>
+          </div>
+        </div>
+        <div class="pillar glass">
+          <div class="pillar-num">03</div>
+          <div class="pillar-body">
+            <h4>Ship It, Observe It</h4>
+            <p>Docker, CI pipelines, environment parity — systems should move from local to production without drama.</p>
+          </div>
+        </div>
+        <div class="pillar glass">
+          <div class="pillar-num">04</div>
+          <div class="pillar-body">
+            <h4>AI as Engineering</h4>
+            <p>Models are dependencies. They have inputs, outputs, latency budgets, and failure modes. Engineer accordingly.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  <div class="depth-blur-bot"></div>
+</section>
+
+<div class="depth-divider"></div>
+
+<!-- ════════════════════════════════════
+     AI + INTELLIGENCE
+════════════════════════════════════ -->
+<section id="ai-section">
+  <!-- Animated neural network canvas in the background -->
+  <canvas id="neural-canvas"></canvas>
+  <div class="depth-blur-top"></div>
+  <div class="ai-inner container">
+
+    <div class="reveal">
+      <div class="glow-line"></div>
+      <div class="section-label">AI + Intelligence</div>
+      <h2 class="section-heading">Embedded Intelligence</h2>
+      <p class="section-subheading">
+        Not a gimmick. Not a wrapper. AI as a first-class engineering component —
+        designed, tested, and shipped with the same discipline as any other system.
+      </p>
+    </div>
+
+    <div class="ai-layout">
+      <div class="ai-grid reveal">
+        <div class="ai-cell">
+          <span class="ai-cell-icon">◈</span>
+          <div class="ai-cell-title">AI Copilot Integration</div>
+          <p class="ai-cell-desc">Embedding LLM APIs into product workflows — with proper rate limiting, streaming, and fallback logic.</p>
+        </div>
+        <div class="ai-cell">
+          <span class="ai-cell-icon">⬡</span>
+          <div class="ai-cell-title">Semantic Search</div>
+          <p class="ai-cell-desc">Vector embeddings, similarity search, and re-ranking pipelines that return results users actually want.</p>
+        </div>
+        <div class="ai-cell">
+          <span class="ai-cell-icon">⟐</span>
+          <div class="ai-cell-title">Recommendation Systems</div>
+          <p class="ai-cell-desc">Collaborative and content-based models wired into the data layer — personalisation that improves with usage.</p>
+        </div>
+        <div class="ai-cell">
+          <span class="ai-cell-icon">⌬</span>
+          <div class="ai-cell-title">Intelligent Workflows</div>
+          <p class="ai-cell-desc">Automation pipelines that classify, route, summarise, and decide without sacrificing auditability.</p>
+        </div>
+        <div class="ai-cell">
+          <span class="ai-cell-icon">⊕</span>
+          <div class="ai-cell-title">ML-Driven Features</div>
+          <p class="ai-cell-desc">Inference endpoints, batch scoring, and feature stores inside Spring Boot services backed by PostgreSQL.</p>
+        </div>
+        <div class="ai-cell">
+          <span class="ai-cell-icon">◎</span>
+          <div class="ai-cell-title">Observability &amp; Safety</div>
+          <p class="ai-cell-desc">Logging model inputs/outputs, tracking drift, building guardrails — monitoring AI like any production system.</p>
+        </div>
+      </div>
+
+      <div class="ai-model-wrap reveal">
+        <div class="ai-model-frame glass">
+          <iframe
+            title="Artificial Neural Network – 3D Model"
+            allowfullscreen mozallowfullscreen="true" webkitallowfullscreen="true"
+            allow="autoplay; fullscreen; xr-spatial-tracking"
+            src="https://sketchfab.com/models/9baf5a5f19394e9a877ec92c3c6d7832/embed?autostart=1&transparent=1&ui_controls=0&ui_infos=0&ui_watermark=0&dnt=1&camera=0"
+          ></iframe>
+          <canvas id="sf-fallback"></canvas>
+        </div>
+        <div class="ai-model-label">Neural Network · Live 3D</div>
+      </div>
+    </div>
+
+  </div>
+  <div class="depth-blur-bot"></div>
+</section>
+
+<div class="depth-divider"></div>
+
+<!-- ════════════════════════════════════
+     RELIABILITY / CONTROL PANEL
+════════════════════════════════════ -->
+<section id="reliability">
+  <div class="depth-blur-top"></div>
+  <div class="container">
+    <div class="reveal">
+      <div class="glow-line"></div>
+      <div class="section-label">Reliability · Testing · Delivery</div>
+      <h2 class="section-heading">Control Panel</h2>
+      <p class="section-subheading">
+        Shipping is not the last step. It is designed into the system from the beginning.
+        Testing, containerisation, and delivery discipline are core to every build.
+      </p>
+    </div>
+
+    <div class="dashboard">
+      <div class="dash-panel glass reveal">
+        <div class="dash-panel-header">
+          <div class="dash-panel-dot"></div>
+          <div class="dash-panel-title">Testing Stack</div>
+        </div>
+        <div class="metric-row"><span class="metric-label">E2E Web</span><span class="metric-value">Cypress</span></div>
+        <div class="metric-row"><span class="metric-label">E2E Mobile</span><span class="metric-value">Maestro</span></div>
+        <div class="metric-row"><span class="metric-label">Unit / Integration</span><span class="metric-value">JUnit 5</span></div>
+        <div class="metric-row"><span class="metric-label">API Contract</span><span class="metric-value">MockMVC</span></div>
+        <div class="metric-row"><span class="metric-label">Coverage Reporting</span><span class="metric-value">JaCoCo</span></div>
+      </div>
+
+      <div class="dash-panel glass reveal">
+        <div class="dash-panel-header">
+          <div class="dash-panel-dot" style="background:#4ade80;box-shadow:0 0 10px #4ade80"></div>
+          <div class="dash-panel-title">Delivery Readiness</div>
+        </div>
+        <div class="bar-metric">
+          <div class="bar-header"><span class="bar-label">Containerisation</span><span class="bar-pct">100%</span></div>
+          <div class="bar-track"><div class="bar-fill" data-w="100"></div></div>
+        </div>
+        <div class="bar-metric">
+          <div class="bar-header"><span class="bar-label">CI/CD Pipeline</span><span class="bar-pct">95%</span></div>
+          <div class="bar-track"><div class="bar-fill" data-w="95"></div></div>
+        </div>
+        <div class="bar-metric">
+          <div class="bar-header"><span class="bar-label">Automated Test Suite</span><span class="bar-pct">90%</span></div>
+          <div class="bar-track"><div class="bar-fill" data-w="90"></div></div>
+        </div>
+        <div class="bar-metric">
+          <div class="bar-header"><span class="bar-label">Env Parity dev→prod</span><span class="bar-pct">100%</span></div>
+          <div class="bar-track"><div class="bar-fill" data-w="100"></div></div>
+        </div>
+        <div class="bar-metric">
+          <div class="bar-header"><span class="bar-label">Rollback Strategy</span><span class="bar-pct">85%</span></div>
+          <div class="bar-track"><div class="bar-fill" data-w="85"></div></div>
+        </div>
+      </div>
+
+      <div class="dash-panel glass reveal">
+        <div class="dash-panel-header">
+          <div class="dash-panel-dot" style="background:#fbbf24;box-shadow:0 0 10px #fbbf24"></div>
+          <div class="dash-panel-title">Deployment Stack</div>
+        </div>
+        <div class="metric-row"><span class="metric-label">Runtime</span><span class="metric-value">Docker · Compose</span></div>
+        <div class="metric-row"><span class="metric-label">Backend Framework</span><span class="metric-value">Spring Boot</span></div>
+        <div class="metric-row"><span class="metric-label">Database</span><span class="metric-value">PostgreSQL</span></div>
+        <div class="metric-row"><span class="metric-label">Migration</span><span class="metric-value">Flyway</span></div>
+        <div class="metric-row"><span class="metric-label">Env Management</span><span class="metric-value">Docker Env Vars</span></div>
+      </div>
+
+      <div class="dash-panel glass reveal">
+        <div class="dash-panel-header">
+          <div class="dash-panel-dot" style="background:#e879f9;box-shadow:0 0 10px #e879f9"></div>
+          <div class="dash-panel-title">Quality Signals</div>
+        </div>
+        <div class="metric-row"><span class="metric-label">Build breaks / sprint</span><span class="metric-value">→ 0</span></div>
+        <div class="metric-row"><span class="metric-label">Regression on release</span><span class="metric-value">Caught by CI</span></div>
+        <div class="metric-row"><span class="metric-label">Env config drift</span><span class="metric-value">Prevented</span></div>
+        <div class="metric-row"><span class="metric-label">Schema migration safety</span><span class="metric-value">Versioned</span></div>
+        <div class="metric-row"><span class="metric-label">Mobile E2E coverage</span><span class="metric-value">Maestro flows</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="depth-blur-bot"></div>
+</section>
+
+<div class="depth-divider"></div>
+
+<!-- ════════════════════════════════════
+     CONTACT
+════════════════════════════════════ -->
+<section id="contact">
+  <div class="container">
+    <div class="reveal">
+      <div class="contact-eyebrow">Ready to Build</div>
+      <h2 class="contact-headline">Let's Engineer It.</h2>
+      <p class="contact-sub">
+        If you need a modern system engineered properly — backend architecture,
+        AI integration, real-time features, mobile — reach out. Serious builds only.
+      </p>
+
+      <div class="contact-card glass">
+        <a href="mailto:mohamad.ismail.asha@gmail.com" class="contact-email cursor-hover">
+          mohamad.ismail.asha@gmail.com
+        </a>
+        <div class="contact-links">
+          <a href="https://www.linkedin.com/in/mohamed-asha-29347b287/" target="_blank" rel="noopener" class="contact-link cursor-hover">↗ LinkedIn</a>
+          <a href="https://github.com/mohammed-zaatreh" target="_blank" rel="noopener" class="contact-link cursor-hover">↗ GitHub</a>
+          <a href="mailto:mohamad.ismail.asha@gmail.com" class="btn-primary cursor-hover" style="clip-path:none;">Send Email →</a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-line">&copy; 2025 Mohamad Ismail Az-za'atreh &mdash; Intelligent Systems Engineer</div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════
+     JAVASCRIPT — All inline, no external deps
+     except GSAP + Three.js loaded above
+═══════════════════════════════════════════ -->
+<script>
+/* ─────────────────────────────────────────────────────────
+   1. CUSTOM CURSOR
+   The dot follows precisely; the ring lags with lerp
+─────────────────────────────────────────────────────────── */
+const $cur     = document.getElementById('cur');
+const $curRing = document.getElementById('cur-ring');
+let mx = 0, my = 0, rx = 0, ry = 0;
+
+// Track exact mouse position
+document.addEventListener('mousemove', e => {
+  mx = e.clientX;
+  my = e.clientY;
+  $cur.style.left = mx + 'px';
+  $cur.style.top  = my + 'px';
+});
+
+// Ring lerps toward cursor at 10% per frame — creates luxurious lag
+(function lerpRing() {
+  rx += (mx - rx) * .1;
+  ry += (my - ry) * .1;
+  $curRing.style.left = rx + 'px';
+  $curRing.style.top  = ry + 'px';
+  requestAnimationFrame(lerpRing);
+})();
+
+// Ring expands when hovering over interactive elements
+document.querySelectorAll('a, button, .cap-card, .pillar, .ai-cell, .cursor-hover').forEach(el => {
+  el.addEventListener('mouseenter', () => {
+    $curRing.style.width       = '50px';
+    $curRing.style.height      = '50px';
+    $curRing.style.borderColor = 'rgba(212,170,60,.6)';
+  });
+  el.addEventListener('mouseleave', () => {
+    $curRing.style.width       = '30px';
+    $curRing.style.height      = '30px';
+    $curRing.style.borderColor = 'rgba(212,170,60,.24)';
+  });
+});
+
+
+/* ─────────────────────────────────────────────────────────
+   2. GLOBAL AMBIENT BACKGROUND PARTICLES
+   Very faint — they're atmosphere, not feature
+─────────────────────────────────────────────────────────── */
+(function bgParticles() {
+  const cv = document.getElementById('bg-canvas');
+  const cx = cv.getContext('2d');
+  let W, H, pts = [];
+
+  // Resize canvas to match the full browser window
+  function resize() {
+    W = cv.width  = window.innerWidth;
+    H = cv.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', () => { resize(); spawn(); });
+
+  // Spawn ambient particles — density based on viewport area
+  function spawn() {
+    pts = [];
+    const n = Math.floor(W * H / 30000);
+    for (let i = 0; i < n; i++) {
+      pts.push({
+        x:  Math.random() * W,
+        y:  Math.random() * H,
+        vx: (Math.random() - .5) * .15,  // very slow drift
+        vy: (Math.random() - .5) * .15,
+        r:  Math.random() * 1.1 + .25,
+        a:  Math.random() * .28 + .06    // subtle opacity
+      });
+    }
+  }
+  spawn();
+
+  function draw() {
+    cx.clearRect(0, 0, W, H);
+    for (const p of pts) {
+      p.x += p.vx; p.y += p.vy;
+      // Wrap around viewport edges
+      if (p.x < 0) p.x = W; if (p.x > W) p.x = 0;
+      if (p.y < 0) p.y = H; if (p.y > H) p.y = 0;
+      cx.beginPath();
+      cx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      cx.fillStyle = `rgba(212,170,60,${p.a})`;
+      cx.fill();
+    }
+    // Draw faint connection lines between close particles
+    for (let i = 0; i < pts.length; i++) {
+      for (let j = i + 1; j < pts.length; j++) {
+        const dx = pts[i].x - pts[j].x;
+        const dy = pts[i].y - pts[j].y;
+        const d  = Math.sqrt(dx * dx + dy * dy);
+        if (d < 100) {
+          cx.beginPath();
+          cx.moveTo(pts[i].x, pts[i].y);
+          cx.lineTo(pts[j].x, pts[j].y);
+          cx.strokeStyle = `rgba(212,170,60,${(1 - d / 100) * .04})`;
+          cx.lineWidth = .4;
+          cx.stroke();
+        }
+      }
+    }
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+
+/* ─────────────────────────────────────────────────────────
+   3. MAIN HERO PARTICLE SYSTEM — Three.js
+   ═══════════════════════════════════════════════════════
+   PHASE A: Singularity — compressed pulsing core
+   PHASE B: Big Bang — cinematic expanding shockwave
+   PHASE C: Galaxy Formation — face-on spiral galaxy
+   PHASE D: Scroll Morph — galaxy unwinds into
+            Neural Constellation (intelligence network)
+─────────────────────────────────────────────────────────── */
+(function heroUniverse() {
+
+  // ── Canvas setup ──────────────────────────────────────
+  const canvas = document.getElementById('galaxy-canvas');
+  // Canvas is now fixed/full-viewport — use window dimensions
+  const W = () => window.innerWidth;
+  const H = () => window.innerHeight;
+
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setClearColor(0x000000, 0);
+  renderer.setSize(W(), H());
+
+  const scene  = new THREE.Scene();
+  // Camera placed above, looking slightly down — gives face-on galaxy view
+  const camera = new THREE.PerspectiveCamera(60, W() / H(), .1, 300);
+  camera.position.set(0, 10, 20);  // slightly higher + further back to frame the atom
+  camera.lookAt(0, 0, 0);
+
+  window.addEventListener('resize', () => {
+    renderer.setSize(W(), H());
+    camera.aspect = W() / H();
+    camera.updateProjectionMatrix();
+  });
+
+  // ── Particle count & buffers ───────────────────────────
+  const COUNT = 6000;  // More particles = denser, more impressive galaxy
+
+  const geometry  = new THREE.BufferGeometry();
+  const positions = new Float32Array(COUNT * 3);  // x,y,z per particle
+  const colors    = new Float32Array(COUNT * 3);  // r,g,b per particle
+  const sizes     = new Float32Array(COUNT);       // size per particle
+
+  // Pre-compute each particle's "final resting place" in each phase
+  const singularityPos = new Float32Array(COUNT * 3);  // compressed at center
+  const bigBangPos     = new Float32Array(COUNT * 3);  // exploded outward
+  const galaxyPos      = new Float32Array(COUNT * 3);  // face-on spiral
+  const neuralPos      = new Float32Array(COUNT * 3);  // constellation network
+  const particleColors = [];  // RGB triplets per particle
+
+  // ── PHASE A target: Singularity
+  // All particles cluster at the center with tiny offsets — pulsing core
+  for (let i = 0; i < COUNT; i++) {
+    const r     = Math.random() * 0.45;   // very tight compression
+    const theta = Math.random() * Math.PI * 2;
+    const phi   = Math.acos(2 * Math.random() - 1);
+    singularityPos[i*3]   = r * Math.sin(phi) * Math.cos(theta);
+    singularityPos[i*3+1] = r * Math.sin(phi) * Math.sin(theta) * .3; // flat disc
+    singularityPos[i*3+2] = r * Math.cos(phi);
+  }
+
+  // ── PHASE B target: Big Bang
+  // Particles fly to a large sphere — layered velocity via radius variation
+  for (let i = 0; i < COUNT; i++) {
+    const r     = 28 + Math.random() * 55;  // deep layered sphere
+    const theta = Math.random() * Math.PI * 2;
+    const phi   = Math.acos(2 * Math.random() - 1);
+    bigBangPos[i*3]   = r * Math.sin(phi) * Math.cos(theta);
+    bigBangPos[i*3+1] = r * Math.sin(phi) * Math.sin(theta);
+    bigBangPos[i*3+2] = r * Math.cos(phi);
+  }
+
+  // ── PHASE C target: Face-on Spiral Galaxy
+  // Logarithmic spiral arms — what you'd see looking DOWN from above
+  const ARM_COUNT = 4;          // four spiral arms
+  const ARM_TIGHTNESS = 0.42;   // how tightly arms wind
+  for (let i = 0; i < COUNT; i++) {
+    const arm   = i % ARM_COUNT;
+    // t grows as we go outward along the spiral
+    const t     = (i / COUNT) * 5.2 * Math.PI + (arm / ARM_COUNT) * Math.PI * 2;
+    const frac  = i / COUNT;
+    // Radius increases logarithmically — core is dense, arms spread out
+    const rBase = 0.4 + Math.pow(frac, 0.65) * 12.0;
+    const spread = (Math.random() - .5) * (0.5 + rBase * 0.1);  // arm width
+    const rr    = rBase + spread;
+    // Very small Y elevation — creates slight 3D depth in the disc
+    const yElev = (Math.random() - .5) * (0.04 + rBase * 0.018);
+
+    // X and Z are the spiral plane (top-down view)
+    galaxyPos[i*3]   = Math.cos(t) * rr;
+    galaxyPos[i*3+1] = yElev;           // Y is the "height" above the disc
+    galaxyPos[i*3+2] = Math.sin(t) * rr;
+
+    // Color palette:
+    // Core particles (frac < 0.25) → hot white-gold
+    // Mid arm  (0.25 – 0.6)        → antique amber
+    // Outer    (0.6 – 0.82)        → muted violet
+    // Tips     (> 0.82)            → rose ember
+    if (frac < 0.08) {
+      // Bright core — almost white-hot
+      particleColors.push(1.0, 0.96, 0.82);
+    } else if (frac < 0.25) {
+      // Warm gold inner arms
+      particleColors.push(1.0, 0.8 + Math.random() * 0.1, 0.3);
+    } else if (frac < 0.58) {
+      // Amber mid-arms
+      particleColors.push(0.85 + Math.random() * .1, 0.65, 0.2 + Math.random() * .1);
+    } else if (frac < 0.82) {
+      // Muted violet — deep space feeling
+      particleColors.push(0.5 + Math.random() * .2, 0.35 + Math.random() * .1, 0.65 + Math.random() * .2);
+    } else {
+      // Faint rose tips at the outermost edges
+      particleColors.push(0.76 + Math.random() * .15, 0.38 + Math.random() * .15, 0.38);
+    }
+  }
+
+  // ── PHASE D target: ATOM
+  // A glowing nucleus surrounded by 4 elliptical electron orbit rings,
+  // each tilted at a different angle — beautiful, instantly recognisable,
+  // and scientifically elegant. Splits the 6000 particles into:
+  //   • ~8%  → dense glowing nucleus at the center
+  //   • ~23% each → 4 orbital ring paths (ellipses tilted in 3D)
+  //   each orbit ring gets its own color to distinguish the shells
+
+  const NUCLEUS_COUNT = Math.floor(COUNT * 0.08);   // bright central cluster
+  const ORBIT_COUNT   = Math.floor(COUNT * 0.23);   // particles per orbit
+  const ORBIT_RINGS   = 4;
+
+  // Each orbit ring definition: tiltX, tiltY, tiltZ match the reference image.
+  // The key insight: we rotate around the Z-axis to spread the rings evenly.
+  // Ring 0: flat/equatorial (0°)
+  // Ring 1: tilted 60° around Z
+  // Ring 2: tilted 120° around Z (= -60°)
+  // Ring 3: fully vertical (90° around Z) — the "pole" ring
+  const orbitDefs = [
+    { rx: 7.5, ry: 2.8, tiltX: 0.0,          tiltY: 0.0, tiltZ: 0.0          },
+    { rx: 7.5, ry: 2.8, tiltX: 0.0,          tiltY: 0.0, tiltZ: Math.PI/3    },  // 60°
+    { rx: 7.5, ry: 2.8, tiltX: 0.0,          tiltY: 0.0, tiltZ: -Math.PI/3   },  // -60°
+    { rx: 7.5, ry: 2.8, tiltX: 0.0,          tiltY: 0.0, tiltZ: Math.PI/2    },  // 90° vertical
+  ];
+
+  // Helper: rotate a 3D point around X then Y then Z axes
+  function rotXYZ(px, py, pz, rx, ry, rz) {
+    // Rotate around X
+    let y1 =  py * Math.cos(rx) - pz * Math.sin(rx);
+    let z1 =  py * Math.sin(rx) + pz * Math.cos(rx);
+    // Rotate around Y
+    let x2 =  px * Math.cos(ry) + z1 * Math.sin(ry);
+    let z2 = -px * Math.sin(ry) + z1 * Math.cos(ry);
+    // Rotate around Z
+    let x3 =  x2 * Math.cos(rz) - y1 * Math.sin(rz);
+    let y3 =  x2 * Math.sin(rz) + y1 * Math.cos(rz);
+    return [x3, y3, z2];
+  }
+
+  let atomIdx = 0;
+
+  // Nucleus: densely packed glowing sphere at origin
+  for (let i = 0; i < NUCLEUS_COUNT; i++) {
+    const r     = Math.random() * 1.1;         // tight cluster
+    const theta = Math.random() * Math.PI * 2;
+    const phi   = Math.acos(2 * Math.random() - 1);
+    neuralPos[atomIdx*3]   = r * Math.sin(phi) * Math.cos(theta);
+    neuralPos[atomIdx*3+1] = r * Math.sin(phi) * Math.sin(theta);
+    neuralPos[atomIdx*3+2] = r * Math.cos(phi);
+    atomIdx++;
+  }
+
+  // 4 elliptical orbit rings
+  for (let ring = 0; ring < ORBIT_RINGS; ring++) {
+    const def = orbitDefs[ring];
+    // How many particles for this ring (distribute remainder to last ring)
+    const count = ring < ORBIT_RINGS - 1
+      ? ORBIT_COUNT
+      : COUNT - atomIdx;  // remaining particles go here
+
+    for (let i = 0; i < count; i++) {
+      // t goes 0 → 2π around the ellipse
+      const t  = (i / count) * Math.PI * 2;
+      // Ellipse in local XZ plane: rx = wide, ry = narrow
+      const lx = def.rx * Math.cos(t);
+      const ly = 0;
+      const lz = def.ry * Math.sin(t);
+
+      // Add a tiny scatter so the orbit has some particle "width"
+      const scatter = 0.12;
+      const sx = lx + (Math.random() - .5) * scatter;
+      const sy = ly + (Math.random() - .5) * scatter;
+      const sz = lz + (Math.random() - .5) * scatter;
+
+      // Tilt the ring in 3D by rotating around X, Y, Z
+      const [fx, fy, fz] = rotXYZ(sx, sy, sz, def.tiltX, def.tiltY, def.tiltZ);
+
+      neuralPos[atomIdx*3]   = fx;
+      neuralPos[atomIdx*3+1] = fy;
+      neuralPos[atomIdx*3+2] = fz;
+      atomIdx++;
+    }
+  }
+
+  // ── Set initial positions to singularity ──────────────
+  for (let i = 0; i < COUNT * 3; i++) {
+    positions[i] = singularityPos[i];
+  }
+
+  // ── Assign colors and sizes ───────────────────────────
+  // Nucleus = white-gold glow, large particles
+  // Each orbit ring gets its own color so they're visually distinct
+  // Colors matching the site's gold/amber/ivory/silver palette
+  const orbitColors = [
+    [0.83, 0.67, 0.24],   // ring 0 — antique gold (matches --gold)
+    [0.91, 0.79, 0.43],   // ring 1 — bright gold (matches --gold-bright)
+    [0.95, 0.94, 0.91],   // ring 2 — warm ivory (matches --ivory)
+    [0.54, 0.58, 0.65],   // ring 3 — silver/mist (matches --silver)
+  ];
+
+  for (let i = 0; i < COUNT; i++) {
+    if (i < NUCLEUS_COUNT) {
+      // Nucleus: bright white-gold glow — matches the site's core palette
+      colors[i*3]   = 1.0;
+      colors[i*3+1] = 0.94;
+      colors[i*3+2] = 0.72;
+      sizes[i] = 3.2 + Math.random() * 2.0;
+    } else {
+      // Work out which ring this particle belongs to
+      const ringIdx = Math.min(
+        Math.floor((i - NUCLEUS_COUNT) / ORBIT_COUNT),
+        ORBIT_RINGS - 1
+      );
+      const c = orbitColors[ringIdx];
+      colors[i*3]   = c[0];
+      colors[i*3+1] = c[1];
+      colors[i*3+2] = c[2];
+      // First ~3 particles on each ring are the glowing "electron" dots — large and bright
+      const posInRing = (i - NUCLEUS_COUNT) % ORBIT_COUNT;
+      sizes[i] = posInRing < 3 ? 4.5 + Math.random() * 1.5 : 1.2 + Math.random() * 0.7;
+    }
+  }
+
+  // Attach attribute buffers to the geometry.
+  // IMPORTANT: We name the color attribute 'aColor' (not 'color') because
+  // Three.js r128 already declares 'attribute vec3 color' internally when
+  // vertexColors is enabled — using the same name causes a shader compile error.
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute('aColor',   new THREE.BufferAttribute(colors, 3));
+  geometry.setAttribute('size',     new THREE.BufferAttribute(sizes, 1));
+
+  // ── Custom shader material for glowing round particles ─
+  // We do NOT set vertexColors:true — that would inject Three.js's own
+  // 'attribute vec3 color' declaration, conflicting with ours.
+  // Instead we declare 'aColor' ourselves and pass it through manually.
+  const material = new THREE.ShaderMaterial({
+    uniforms: {
+      uTime:      { value: 0 },
+      uPhase:     { value: 0 },
+      uExplosion: { value: 0 },
+    },
+    vertexShader: `
+      /* Our custom per-particle attributes */
+      attribute float size;
+      attribute vec3  aColor;   /* renamed from 'color' to avoid Three.js conflict */
+
+      varying vec3  vColor;
+      varying float vAlpha;
+
+      uniform float uTime;
+      uniform float uPhase;
+      uniform float uExplosion;
+
+      void main() {
+        vColor = aColor;
+
+        /* Larger particles (core) get a slight brightness boost */
+        float brightness = 1.0 + (1.0 - size / 4.0) * 0.5;
+        vAlpha = clamp(brightness, 0.4, 1.0);
+
+        vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
+        /* Scale point size with distance so far particles stay visible */
+        gl_PointSize = size * (300.0 / -mvPos.z);
+        gl_Position  = projectionMatrix * mvPos;
+      }
+    `,
+    fragmentShader: `
+      varying vec3  vColor;
+      varying float vAlpha;
+
+      void main() {
+        /* Smooth circular disc — discard corners of the gl_PointCoord square */
+        vec2  uv   = gl_PointCoord - vec2(0.5);
+        float dist = length(uv);
+        if (dist > 0.5) discard;
+
+        /* Radial soft glow: bright centre, fades at the edge */
+        float alpha = smoothstep(0.5, 0.0, dist) * vAlpha;
+        gl_FragColor = vec4(vColor, alpha);
+      }
+    `,
+    transparent: true,
+    depthWrite:  false,
+    blending:    THREE.AdditiveBlending,  // overlapping particles bloom brighter
+  });
+
+  const points = new THREE.Points(geometry, material);
+  scene.add(points);
+
+  // ── Animation state machine ────────────────────────────
+  // Tracks which phase we're in and manages smooth transitions
+  let state = 'singularity';  // current phase label
+  let transitionProgress = 0; // 0–1 progress during a transition
+  let sourcePositions = new Float32Array(singularityPos);  // where particles start
+  let targetPositions = new Float32Array(singularityPos);  // where they're going
+  let transitionSpeed = 0;    // eased per-frame delta
+
+  // Helper: smooth cubic ease-in-out (like CSS ease-in-out)
+  function easeInOut(t) {
+    return t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  }
+
+  // Lerp (linear interpolation) between two values — basic building block
+  function lerp(a, b, t) { return a + (b - a) * t; }
+
+  // Start a transition to a new target position array
+  function transitionTo(newTarget, speed) {
+    sourcePositions = new Float32Array(positions);  // snapshot current
+    targetPositions = newTarget;
+    transitionProgress = 0;
+    transitionSpeed    = speed;
+  }
+
+  // ── Phase A: Singularity setup ─────────────────────────
+  // Particles start compressed; btn fades in after 2s to invite interaction
+  setTimeout(() => {
+    const btn = document.getElementById('big-bang-btn');
+    btn.style.transition = 'opacity 1.2s';
+    btn.style.opacity = '1';
+  }, 2200);
+
+  // ── Phase B: Big Bang trigger ──────────────────────────
+  function triggerBigBang() {
+    state = 'bigbang';
+    // Explode to big bang sphere — speed 0.008 = ~125 frames = ~2s
+    transitionTo(bigBangPos, 0.008);
+    // After 2.5 seconds of explosion, start coalescing into the galaxy
+    setTimeout(() => {
+      state = 'forming';
+      // speed 0.014 = ~72 frames = ~1.2s — fast enough to feel satisfying
+      transitionTo(galaxyPos, 0.014);
+      // Mark galaxy as fully formed after transition completes
+      setTimeout(() => {
+        state = 'galaxy';
+      }, 2000);
+    }, 2500);
+  }
+
+  // Replay button fires the Big Bang
+  document.getElementById('big-bang-btn').addEventListener('click', () => {
+    // Reset to singularity first, then bang
+    state = 'singularity';
+    transitionTo(singularityPos, 0.02);
+    setTimeout(triggerBigBang, 1200);
+  });
+
+  // Auto-trigger Big Bang after Singularity appreciation time (3.5s)
+  setTimeout(triggerBigBang, 3500);
+
+  // ── Scroll-driven morph: galaxy → neural constellation ─
+  // The canvas is fixed, so we drive the morph using total page scroll.
+  // Morph starts after 1 viewport-height of scroll and completes by 3vh.
+  let scrollProgress = 0;  // 0 = galaxy; 1 = full neural constellation
+
+  window.addEventListener('scroll', () => {
+    const scrollY  = window.scrollY;
+    const vh       = window.innerHeight;
+    // Start morphing after scrolling 1 full screen height
+    // Complete at 3 screen heights of scroll
+    const raw = (scrollY - vh * 0.8) / (vh * 2.0);
+    scrollProgress = Math.max(0, Math.min(1, raw));
+
+    // Kick into morphing mode as soon as scroll starts, if galaxy is formed
+    if (scrollProgress > 0 && (state === 'galaxy' || state === 'forming')) {
+      state = 'morphing';
+    }
+    // Scroll back to top — return to galaxy
+    if (scrollProgress === 0 && state === 'morphing') {
+      state = 'galaxy';
+    }
+  });
+
+  // ── Mouse influence ────────────────────────────────────
+  // Gentle tilt — feels like you're nudging a massive structure
+  let mouseX = 0, mouseY = 0;
+  document.addEventListener('mousemove', e => {
+    mouseX = (e.clientX / window.innerWidth  - .5) * 2;  // –1 to +1
+    mouseY = (e.clientY / window.innerHeight - .5) * 2;
+  });
+
+  // ── Singularity pulse helper ───────────────────────────
+  // Particles breathe in/out from the core — creates living tension
+  let singTime = 0;
+  function applySingularityPulse(t) {
+    const pulse = Math.sin(t * 1.4) * .18 + Math.sin(t * 2.8) * .06;
+    for (let i = 0; i < COUNT; i++) {
+      const r = .5 + Math.random() * .12;
+      positions[i*3]   = singularityPos[i*3]   * (1 + pulse);
+      positions[i*3+1] = singularityPos[i*3+1] * (1 + pulse);
+      positions[i*3+2] = singularityPos[i*3+2] * (1 + pulse);
+    }
+    geometry.attributes.position.needsUpdate = true;
+  }
+
+  // ── Per-ring travel angles — particles move along fixed ring paths ──────
+  // ringAngles[r] advances each frame so particles travel around the ellipse.
+  // The ring GEOMETRY stays fixed — only the particles move on it.
+  const ringAngles = [0, 0, 0, 0];
+  const ringSpeeds = [0.016, -0.011, 0.009, -0.013]; // alternating CW/CCW
+
+  // ── Main render loop ──────────────────────────────────────────────────
+  let frame = 0;
+  function animate() {
+    requestAnimationFrame(animate);
+    frame++;
+    material.uniforms.uTime.value = frame * .016;
+    singTime += .018;
+
+    // ─ Position updates ─────────────────────────────────
+    if (state === 'singularity') {
+      applySingularityPulse(singTime);
+
+    } else if (state === 'morphing') {
+      const eased = easeInOut(scrollProgress);
+
+      if (scrollProgress >= 0.98) {
+        // ── FULL ATOM ──────────────────────────────────────
+        // Advance each ring's travel angle
+        for (let r = 0; r < ORBIT_RINGS; r++) ringAngles[r] += ringSpeeds[r];
+
+        let idx = NUCLEUS_COUNT; // nucleus particles stay at center
+        for (let ring = 0; ring < ORBIT_RINGS; ring++) {
+          const def   = orbitDefs[ring];
+          const angle = ringAngles[ring]; // how far along the ellipse we've travelled
+          const count = ring < ORBIT_RINGS - 1
+            ? ORBIT_COUNT
+            : COUNT - NUCLEUS_COUNT - ORBIT_COUNT * (ORBIT_RINGS - 1);
+
+          for (let i = 0; i < count && idx < COUNT; i++, idx++) {
+            // Each particle has a fixed offset around the ellipse (i/count * 2π)
+            // plus the shared travel angle — so all particles move together
+            const t  = (i / count) * Math.PI * 2 + angle;
+            const lx = def.rx * Math.cos(t);
+            const lz = def.ry * Math.sin(t);
+            // Apply the ring's 3D tilt — this is what makes the ring stay
+            // at its fixed angle in world space (60°, -60°, 90° etc.)
+            const [fx, fy, fz] = rotXYZ(lx, 0, lz, def.tiltX, def.tiltY, def.tiltZ);
+            positions[idx*3]   = fx;
+            positions[idx*3+1] = fy;
+            positions[idx*3+2] = fz;
+          }
+        }
+        geometry.attributes.position.needsUpdate = true;
+
+        // CRITICAL: zero out any accumulated object rotation so the ring
+        // planes themselves never drift — only particles travel along them
+        points.rotation.set(0, 0, 0);
+
+      } else {
+        // Morphing galaxy → atom
+        for (let i = 0; i < COUNT * 3; i++) {
+          positions[i] = lerp(galaxyPos[i], neuralPos[i], eased);
+        }
+        geometry.attributes.position.needsUpdate = true;
+      }
+
+    } else if (transitionProgress < 1 && (state === 'bigbang' || state === 'forming')) {
+      transitionProgress = Math.min(1, transitionProgress + transitionSpeed);
+      const eased = easeInOut(transitionProgress);
+      for (let i = 0; i < COUNT * 3; i++) {
+        positions[i] = lerp(sourcePositions[i], targetPositions[i], eased);
+      }
+      geometry.attributes.position.needsUpdate = true;
+    }
+
+    // ─ Whole-object rotation (ONLY for galaxy/singularity phases) ────────
+    if (state === 'singularity') {
+      points.rotation.y += .0008;
+      points.rotation.x += (mouseY * .04 - points.rotation.x) * .05;
+
+    } else if (state === 'galaxy' || state === 'forming') {
+      points.rotation.y += .0015;
+      points.rotation.x += (mouseY * .06 - points.rotation.x) * .03;
+      points.rotation.z += (-mouseX * .04 - points.rotation.z) * .03;
+
+    } else if (state === 'morphing' && scrollProgress < 0.98) {
+      // Transitioning into atom — gradually stop the spin
+      points.rotation.y += lerp(.0015, 0, easeInOut(scrollProgress / 0.98));
+      points.rotation.x += (mouseY * .04 - points.rotation.x) * .03;
+      points.rotation.z += (-mouseX * .03 - points.rotation.z) * .03;
+    }
+    // In full atom state (scrollProgress >= 0.98): rotation is zeroed above,
+    // camera is completely static — the atom sits perfectly still in space.
+
+    // Camera: static in atom state, gentle parallax during galaxy
+    if (state !== 'morphing' || scrollProgress < 0.98) {
+      camera.position.x += (mouseX * .6 - camera.position.x) * .018;
+      camera.position.y += (-mouseY * .4 + 10 - camera.position.y) * .018;
+    } else {
+      // Lock camera position in atom state — no drift, no wobble
+      camera.position.x += (0 - camera.position.x) * .04;
+      camera.position.y += (10 - camera.position.y) * .04;
+    }
+    camera.lookAt(0, 0, 0);
+
+    renderer.render(scene, camera);
+  }
+  animate();
+
+})();
+
+
+/* ─────────────────────────────────────────────────────────
+   4. PHILOSOPHY SECTION — Wireframe Sphere Background
+   A slowly rotating icosahedron + orbital rings — architecture metaphor
+─────────────────────────────────────────────────────────── */
+(function sphereBg() {
+  const cv = document.getElementById('sphere-canvas');
+  if (!cv || !window.THREE) return;
+
+  const scene    = new THREE.Scene();
+  const camera   = new THREE.PerspectiveCamera(55, 1, .1, 100);
+  camera.position.z = 3.8;
+
+  const renderer = new THREE.WebGLRenderer({ canvas: cv, alpha: true, antialias: true });
+  renderer.setClearColor(0, 0);
+  renderer.setSize(cv.parentElement.offsetWidth, cv.parentElement.offsetHeight);
+
+  // Icosahedron wireframe — ordered, geometric, architectural
+  const geo = new THREE.IcosahedronGeometry(1.2, 3);
+  const mat = new THREE.MeshBasicMaterial({
+    color: 0xd4aa3c, wireframe: true, transparent: true, opacity: .07
+  });
+  const sphere = new THREE.Mesh(geo, mat);
+  scene.add(sphere);
+
+  // Three orbital rings at different inclinations
+  for (let i = 0; i < 3; i++) {
+    const rGeo = new THREE.TorusGeometry(1.4 + i * 0.4, 0.003, 6, 80);
+    const rMat = new THREE.MeshBasicMaterial({
+      color: 0xd4aa3c, transparent: true, opacity: .045 - i * 0.01
+    });
+    const ring = new THREE.Mesh(rGeo, rMat);
+    ring.rotation.x = Math.random() * Math.PI;
+    ring.rotation.y = Math.random() * Math.PI;
+    scene.add(ring);
+  }
+
+  let t = 0;
+  function animate() {
+    requestAnimationFrame(animate);
+    t += .004;
+    sphere.rotation.y = t;
+    sphere.rotation.x = t * .4;
+    renderer.render(scene, camera);
+  }
+  animate();
+})();
+
+
+/* ─────────────────────────────────────────────────────────
+   5. AI SECTION — Neural Network Canvas Background
+   Animated node grid with pulsing connections
+─────────────────────────────────────────────────────────── */
+(function neuralBg() {
+  const cv = document.getElementById('neural-canvas');
+  if (!cv) return;
+  const ctx     = cv.getContext('2d');
+  const section = document.getElementById('ai-section');
+  let W, H, nodes = [], t = 0;
+
+  function resize() {
+    W = cv.width  = section.offsetWidth;
+    H = cv.height = section.offsetHeight;
+  }
+  resize();
+  window.addEventListener('resize', () => { resize(); buildNodes(); });
+
+  // Build a grid of neural nodes
+  function buildNodes() {
+    nodes = [];
+    const cols = 16, rows = 10;
+    for (let c = 0; c < cols; c++) {
+      for (let r = 0; r < rows; r++) {
+        nodes.push({
+          x:     (c / (cols - 1)) * W,
+          y:     (r / (rows - 1)) * H,
+          phase: Math.random() * Math.PI * 2,
+          speed: .2 + Math.random() * .3
+        });
+      }
+    }
+  }
+  buildNodes();
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    t += .006;
+    const maxD = W / 9;
+
+    // Draw connections between nearby nodes with pulsing opacity
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        const dx = nodes[i].x - nodes[j].x;
+        const dy = nodes[i].y - nodes[j].y;
+        const d  = Math.sqrt(dx * dx + dy * dy);
+        if (d < maxD) {
+          const pulse = Math.sin(t * nodes[i].speed + nodes[i].phase) * .5 + .5;
+          ctx.beginPath();
+          ctx.moveTo(nodes[i].x, nodes[i].y);
+          ctx.lineTo(nodes[j].x, nodes[j].y);
+          ctx.strokeStyle = `rgba(212,170,60,${(1 - d / maxD) * .048 * pulse})`;
+          ctx.lineWidth   = .5;
+          ctx.stroke();
+        }
+      }
+    }
+    // Draw node dots — size and brightness pulse with phase
+    nodes.forEach(n => {
+      const pulse = Math.sin(t * n.speed + n.phase) * .5 + .5;
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, 1.2 + pulse * 1.6, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(212,170,60,${.1 + pulse * .28})`;
+      ctx.fill();
+    });
+
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+
+/* ─────────────────────────────────────────────────────────
+   6. SKETCHFAB FALLBACK
+   If the iframe can't load, show a Three.js icosahedron instead
+─────────────────────────────────────────────────────────── */
+(function sfFallback() {
+  if (!window.THREE) return;
+  setTimeout(() => {
+    const iframe   = document.querySelector('.ai-model-frame iframe');
+    const fallback = document.getElementById('sf-fallback');
+    if (!iframe || !fallback) return;
+    try {
+      const iDoc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
+      if (!iDoc || iDoc.readyState === 'loading') return;
+    } catch(e) {
+      // Cross-origin error means iframe loaded externally — show fallback
+      iframe.style.display = 'none';
+      fallback.style.display = 'block';
+      const W2 = fallback.parentElement.offsetWidth  || 360;
+      const H2 = fallback.parentElement.offsetHeight || 360;
+      fallback.width = W2; fallback.height = H2;
+      const r2 = new THREE.WebGLRenderer({ canvas: fallback, alpha: true, antialias: true });
+      r2.setSize(W2, H2); r2.setClearColor(0, 0);
+      const s2  = new THREE.Scene();
+      const c2  = new THREE.PerspectiveCamera(55, 1, .1, 50);
+      c2.position.z = 3.2;
+      const g2  = new THREE.IcosahedronGeometry(1, 3);
+      const m2  = new THREE.MeshBasicMaterial({
+        color: 0xd4aa3c, wireframe: true, transparent: true, opacity: .22
+      });
+      s2.add(new THREE.Mesh(g2, m2));
+      let tt = 0;
+      (function loop() {
+        requestAnimationFrame(loop);
+        tt += .006;
+        s2.rotation.y = tt;
+        r2.render(s2, c2);
+      })();
+    }
+  }, 3000);
+})();
+
+
+/* ─────────────────────────────────────────────────────────
+   7. HERO TEXT ENTRANCE — GSAP Timeline
+   Staggered reveal of each text element after page load
+─────────────────────────────────────────────────────────── */
+window.addEventListener('load', () => {
+  gsap.registerPlugin(ScrollTrigger);
+
+  // Each element fades up in sequence — unhurried and deliberate
+  const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
+  tl.to('#h-label', { opacity: 1, y: 0, duration: 1.0, delay: .8 })
+    .to('#h-name',  { opacity: 1, y: 0, duration: 1.4 }, '-=.35')
+    .to('#h-title', { opacity: 1, y: 0, duration: 1.0 }, '-=.5')
+    .to('#h-tag',   { opacity: 1, y: 0, duration: 1.0 }, '-=.45')
+    .to('#h-ctas',  { opacity: 1, y: 0, duration: .85 }, '-=.4');
+});
+
+
+/* ─────────────────────────────────────────────────────────
+   8. SCROLL REVEAL — All .reveal elements
+   Each fades up when it enters the viewport
+─────────────────────────────────────────────────────────── */
+gsap.registerPlugin(ScrollTrigger);
+document.querySelectorAll('.reveal').forEach(el => {
+  gsap.to(el, {
+    opacity:  1,
+    y:        0,
+    duration: 1.1,
+    ease:     'power3.out',
+    scrollTrigger: { trigger: el, start: 'top 88%', once: true }
+  });
+});
+
+
+/* ─────────────────────────────────────────────────────────
+   9. PROGRESS BARS — Animate when scrolled into view
+─────────────────────────────────────────────────────────── */
+document.querySelectorAll('.bar-fill').forEach(bar => {
+  const targetWidth = bar.getAttribute('data-w') + '%';
+  ScrollTrigger.create({
+    trigger:  bar,
+    start:    'top 90%',
+    once:     true,
+    onEnter:  () => { bar.style.width = targetWidth; }
+  });
+});
+
+
+/* ─────────────────────────────────────────────────────────
+   10. SCROLL EFFECTS — Parallax + Nav state
+─────────────────────────────────────────────────────────── */
+window.addEventListener('scroll', () => {
+  const y = window.scrollY;
+
+  // Very subtle name parallax — drifts upward as you scroll
+  const nameEl = document.getElementById('h-name');
+  if (nameEl) nameEl.style.transform = `translateY(${y * .1}px)`;
+
+  // Nav gets frosted glass background once you scroll past the hero
+  document.getElementById('main-nav').classList.toggle('scrolled', y > 50);
+});
+
+
+/* ─────────────────────────────────────────────────────────
+   11. CAPABILITY CARD 3D TILT
+   Cards subtly tilt toward the cursor — depth without gimmick
+─────────────────────────────────────────────────────────── */
+document.querySelectorAll('.cap-card').forEach(card => {
+  card.addEventListener('mousemove', e => {
+    const r  = card.getBoundingClientRect();
+    const cx = ((e.clientX - r.left) / r.width  - .5) * 2;  // –1 to +1
+    const cy = ((e.clientY - r.top)  / r.height - .5) * 2;
+    card.style.transform = `translateY(-3px) rotateY(${cx * 5}deg) rotateX(${-cy * 5}deg)`;
+  });
+  card.addEventListener('mouseleave', () => {
+    card.style.transform = '';
+  });
+});
+
+
+/* ─────────────────────────────────────────────────────────
+   12. CURSOR LIGHT GLOW
+   A soft gold radial glow follows the cursor — sits above the fixed canvas
+─────────────────────────────────────────────────────────── */
+(function heroLight() {
+  const light = document.createElement('div');
+  light.style.cssText = `
+    position:fixed; width:600px; height:600px;
+    border-radius:50%; pointer-events:none; z-index:4;
+    background:radial-gradient(circle, rgba(212,170,60,.032) 0%, transparent 65%);
+    transform:translate(-50%,-50%); transition:opacity .35s; opacity:0;
+  `;
+  document.body.appendChild(light);
+
+  document.addEventListener('mousemove', e => {
+    light.style.left    = e.clientX + 'px';
+    light.style.top     = e.clientY + 'px';
+    light.style.opacity = '1';
+  });
+})();
+
+</script>
+</body>
+</html>
